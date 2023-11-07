@@ -6,7 +6,7 @@ https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB
 近期由于实习工作需要,需要将UltraFace部署在jetson上,并使用显卡加速.虽然有仓库已经将其做了tensorrt部署,但是经过测试感觉效果不好.同时为了后续方便整合到整个项目中,决定自己进行部署.**该仓库与本人的NanoTrace_tensorrt_cpp使用的是类似的结构.对于想在jetson板子上部署检测加追踪的用户们比较方便**.
 
 ## Step 1: 获取该仓库
- `git clone https://github.com/ZhangLi1210/NanoTrack_Tensorrt_Cpp.git`
+ `git clone https://github.com/ZhangLi1210/UltraFace_Tensorrt_Cpp.git`
 
 ## Step 2: 获取UltraFace的ONNX文件
 在项目的onnx文件夹下开启终端,并执行:
