@@ -61,6 +61,6 @@ https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB
 
 `make -j4`
 
-编译成功后, 使用 **./Ultra_Face_trt** 运行例程,程序将尝试获取你的摄像头并进行人脸识别.
+编译成功后, 使用 **./Ultra_Face_trt** 运行例程,程序将尝试获取你的摄像头并进行人脸识别.在我的电脑上(1060)上推理一张图片的时间平均为***10ms(100FPS)***
 
 # 项目代码是作者边学习边尝试构建的,代码中含有非常详细的注释,欢迎大家一起学习指正.
