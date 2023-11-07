@@ -325,8 +325,6 @@ void UltraFace::detect(cv::Mat im, std::vector<FaceInfo> &face_list)
     //将图像进行按照模型输入大小320X240(wxh)进行缩放
     cv::Mat resizedImage;
     cv::resize(im, resizedImage, cv::Size(in_w, in_h), 0, 0, cv::INTER_LINEAR);
-    //cv::imshow("qq0",resizedImage);
-    //cv::waitKey(10);
     //执行均值减法和归一化操作
     // 遍历图像的每个像素
     //std::cout<<resizedImage.rows<<std::endl;
@@ -343,8 +341,6 @@ void UltraFace::detect(cv::Mat im, std::vector<FaceInfo> &face_list)
                // std::cout<<pix_value_deal<<std::endl;
                 //赋予给UltraFace_input_blob
                 UltraFace_input_blob[c*resizedImage.cols*resizedImage.rows + x + y*resizedImage.cols] = pix_value_deal;
-                // 在这里执行你的操作，比如输出像素值
-                //std::cout << "Pixel value at (" << x << ", " << y << "), channel " << c << ": " << static_cast<int>(pixelValue) << std::endl;
             }
         }
     }
@@ -363,8 +359,6 @@ void UltraFace::detect(cv::Mat im, std::vector<FaceInfo> &face_list)
     std::vector<FaceInfo> valid_input;
 
     generateBBox(bbox_collection, this->output_scores, this->output_bboxes, score_threshold, num_anchors);
-    //std::cout<<bbox_collection.size()<<std::endl;
-    //face_list = nonMaxSuppression(bbox_collection,iou_threshold);
     nms(bbox_collection,face_list);
 }
 
