@@ -23,7 +23,7 @@ https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB
 
 ## Step 4 onnx to Engine:
 ### 1. Amd64 ubuntu:
-1. 请确保已经成功安装了Nvidia显卡驱动,CUDA,与tensorrt.找到安装好的tensorrt的trtexec, trtexec 时tensorrt提供的ONNX转engine模型的工具,例如我的trtexec在: 
+1. 请确保已经成功安装了Nvidia显卡驱动,CUDA,与tensorrt.找到安装好的tensorrt的trtexec, trtexec是tensorrt提供的ONNX转engine模型的工具,例如我的trtexec在: 
 ```/home/lizhang/TensorRT-8.5.2.2/bin/trtexec```
 
 2. 替换 **create_trt_engine.sh** 中的**trtexec**路径 , 替换位置在**create_trt_engine.sh**中的 第6行,将该路径替换成你的路径:
