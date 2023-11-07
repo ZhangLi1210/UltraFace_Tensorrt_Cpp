@@ -328,6 +328,7 @@ void UltraFace::detect(cv::Mat im, std::vector<FaceInfo> &face_list)
     //执行均值减法和归一化操作
     // 遍历图像的每个像素
     //std::cout<<resizedImage.rows<<std::endl;
+    /**
     //行 240
     for (int y = 0; y < resizedImage.rows; y++) {
         //列 320
@@ -343,6 +344,26 @@ void UltraFace::detect(cv::Mat im, std::vector<FaceInfo> &face_list)
                 UltraFace_input_blob[c*resizedImage.cols*resizedImage.rows + x + y*resizedImage.cols] = pix_value_deal;
             }
         }
+    }
+    **/
+
+    //改进了循环遍历,减少了计算开销
+    const int imageCols = resizedImage.cols;
+    const int imageRows = resizedImage.rows;
+    const int imageChannels = resizedImage.channels();
+    const int imageSize = imageCols * imageRows;
+
+    float* ultraFaceInputPtr = UltraFace_input_blob;
+
+    for (int y = 0; y < imageRows; y++) {
+        for (int x = 0; x < imageCols; x++) {
+            for (int c = 0; c < imageChannels; c++) {
+            	const int pixelIdx = c * imageSize + x + y * imageCols;
+            	const float pixelValue = resizedImage.at<cv::Vec3b>(y, x)[c];
+            	const float pixValueDeal = (pixelValue - mean_vals[c]) * norm_vals[c];
+            	ultraFaceInputPtr[pixelIdx] = pixValueDeal;
+        	}
+    	}
     }
 
     ///将图像数据传入engine中
