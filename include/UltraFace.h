@@ -24,6 +24,7 @@ public:
     void                 detect(cv::Mat im, std::vector<FaceInfo> &face_list);
     void                 generateBBox(std::vector<FaceInfo> &bbox_collection, float * scores, float *boxes, float score_threshold, int num_anchors);
     void                 nms(std::vector<FaceInfo> &input, std::vector<FaceInfo> &output, int type = blending_nms);
+    cv::Mat              resizeAndPadingImage(cv::Mat src, cv::Size size, int padColor=0);
     int                  num_bindings;  //engine所有输入和输出张量的数量
 
     int                  num_inputs  = 0; //输入张量的数量
@@ -39,6 +40,9 @@ public:
 
     float * output_bboxes;
     float * output_scores;
+
+
+
 private:
     nvinfer1::IRuntime*          runtime = nullptr;
 
@@ -78,6 +82,10 @@ private:
     std::vector<int> w_h_list;
 
     std::vector<std::vector<float>> priors = {};
+
+    int pad_x;
+    int pad_y; //x y方向上填充的像素宽度 单边
+    float ratio; //缩放系数
 };
 
 UltraFace::UltraFace(const std::string& UltraFace_engine_file_path,int input_width, int input_length,
@@ -324,7 +332,13 @@ void UltraFace::detect(cv::Mat im, std::vector<FaceInfo> &face_list)
     this->image_h = im.rows;
     //将图像进行按照模型输入大小320X240(wxh)进行缩放
     cv::Mat resizedImage;
-    cv::resize(im, resizedImage, cv::Size(in_w, in_h), 0, 0, cv::INTER_LINEAR);
+
+    //cv::resize(im, resizedImage, cv::Size(in_w, in_h), 0, 0, cv::INTER_LINEAR);
+    //将resize改成resizeandpading 因为有时候图像不一定和模型的输入成比例
+    resizedImage = resizeAndPadingImage(im,cv::Size(in_w,in_h));
+
+    cv::imshow("ss",resizedImage);
+    cv::waitKey(5);
     //执行均值减法和归一化操作
     // 遍历图像的每个像素
     //std::cout<<resizedImage.rows<<std::endl;
@@ -389,15 +403,28 @@ void UltraFace::generateBBox(std::vector<FaceInfo> &bbox_collection, float * sco
     for (int i = 0; i < num_anchors; i++) {
         if (scores[i * 2 + 1] > score_threshold) {
             FaceInfo rects;
-            float x_center = boxes[i * 4] * center_variance * priors[i][2] + priors[i][0];
-            float y_center = boxes[i * 4 + 1] * center_variance * priors[i][3] + priors[i][1];
-            float w = exp(boxes[i * 4 + 2] * size_variance) * priors[i][2];
-            float h = exp(boxes[i * 4 + 3] * size_variance) * priors[i][3];
 
-            rects.x1 = clip(x_center - w / 2.0, 1) * image_w;
-            rects.y1 = clip(y_center - h / 2.0, 1) * image_h;
-            rects.x2 = clip(x_center + w / 2.0, 1) * image_w;
-            rects.y2 = clip(y_center + h / 2.0, 1) * image_h;
+            float x_center = ((boxes[i * 4] * center_variance * priors[i][2] + priors[i][0])*in_w - this->pad_x)*this->ratio;
+            float y_center = ((boxes[i * 4 + 1] * center_variance * priors[i][3] + priors[i][1])*in_h-this->pad_y)*this->ratio;
+            float w = (exp(boxes[i * 4 + 2] * size_variance) * priors[i][2])*in_w* this->ratio;
+            float h = (exp(boxes[i * 4 + 3] * size_variance) * priors[i][3])*in_h*this->ratio;  //模型的输出是归一化之后的结果 所以要乘in_w in_h 320 240
+
+            float x1 = x_center - w / 2.0;
+            rects.x1 = clip(x1,image_w);
+
+            float y1 = y_center - h / 2.0;
+            rects.y1 = clip(y1,image_h);
+
+            float x2 = x_center + w / 2.0;
+            rects.x2 = clip(x2,image_w);
+
+            float y2 = y_center + h / 2.0;
+            rects.y2 = clip(y2,image_h);
+
+//            rects.y1 = clip(y_center - h / 2.0,  1);
+//            rects.x2 = clip(x_center + w / 2.0, 1);
+//            rects.y2 = clip(y_center + h / 2.0, 1);
+
             rects.score = clip(scores[i * 2 + 1], 1);
             bbox_collection.push_back(rects);
         }
@@ -461,7 +488,6 @@ void UltraFace::nms(std::vector<FaceInfo> &input, std::vector<FaceInfo> &output,
                 output.push_back(buf[0]);
         }
         else if(type == blending_nms){
-           // std::cout<<"www"<<std::endl;
             float total = 0;
             for (int i = 0; i < buf.size(); i++) {
                 total += exp(buf[i].score);
@@ -480,4 +506,64 @@ void UltraFace::nms(std::vector<FaceInfo> &input, std::vector<FaceInfo> &output,
         }
     }
 }
+
+//输入前处理
+cv::Mat UltraFace::resizeAndPadingImage(cv::Mat src, cv::Size size, int padColor) {
+    cv::Mat img = src.clone();
+    int h = img.rows;
+    int w = img.cols;
+    int sh = size.height;
+    int sw = size.width;
+
+    int interp = (h > sh || w > sw) ? cv::INTER_AREA : cv::INTER_CUBIC;
+
+    double aspect = static_cast<double>(w) / h;
+    int new_w, new_h, pad_left, pad_right, pad_top, pad_bot;
+
+    if (aspect > 1) {
+        new_w = sw;
+        new_h = cvRound(new_w / aspect);
+        double pad_vert = (sh - new_h) / 2;
+        pad_top = static_cast<int>(std::floor(pad_vert));
+        pad_bot = static_cast<int>(std::ceil(pad_vert));
+        pad_left = 0;
+        pad_right = 0;
+
+        this->pad_x = 0;
+        this->pad_y = int(pad_vert);
+        this->ratio = float(w)/new_w;
+
+
+    } else if (aspect < 1) {
+        new_h = sh;
+        new_w = cvRound(new_h * aspect);
+        double pad_horz = (sw - new_w) / 2;
+        pad_left = static_cast<int>(std::floor(pad_horz));
+        pad_right = static_cast<int>(std::ceil(pad_horz));
+        pad_top = 0;
+        pad_bot = 0;
+        this->pad_x = pad_horz;
+        this->pad_y = 0;
+        this->ratio = float(h)/new_h;
+    } else {
+        new_h = sh;
+        new_w = sw;
+        pad_left = 0;
+        pad_right = 0;
+        pad_top = 0;
+        pad_bot = 0;
+
+        this->pad_x = 0;
+        this->pad_y = 0;
+        this->ratio = float(h)/new_h;
+    }
+
+    cv::Scalar padColorScalar(padColor);
+    cv::Mat scaledImg;
+    cv::resize(img, scaledImg, cv::Size(new_w, new_h), 0, 0, interp);
+    cv::copyMakeBorder(scaledImg, scaledImg, pad_top, pad_bot, pad_left, pad_right, cv::BORDER_CONSTANT, padColorScalar);
+
+    return scaledImg;
+}
+
 #endif ULTRAFACE_H
